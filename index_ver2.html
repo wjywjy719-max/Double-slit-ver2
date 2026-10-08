@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="두 슬릿이 같은 무작위 위상 점프를 겪을 때 간섭 파형과 무늬가 어떻게 되는지 조절하며 관찰하는 시뮬레이션">
+<meta property="og:title" content="이중슬릿 위상 점프 실험">
+<meta property="og:description" content="위상 점프 횟수, 슬릿 간격, 파장을 바꿔 가며 간섭무늬를 관찰하는 시뮬레이션">
+<meta property="og:type" content="website">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>이중슬릿 위상 점프 실험</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 배치: 실험실 데스크톱 프로그램 창. 제목줄-도구줄-(왼쪽 파라미터 도크 | 오른쪽 플롯 3채널)-상태줄, 한 화면에 고정 */
+:root{
+  color-scheme:light;
+  --win:#e4e5e7; --panel:#f3f3f4; --field:#ffffff; --line:#a9abb0; --line2:#c9cbcf; --ink:#1d1f23; --muted:#5d6068;
+  --head:#d5d7db; --accent:#2f6fd0; --scope:#0c0e12; --run:#1e9a3c;
+  --sans:"IBM Plex Sans KR","Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--win);color:var(--ink);font-family:var(--sans);font-size:13.5px;line-height:1.4}
+.app{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;max-width:1680px;margin:0 auto;border-inline:1px solid var(--line)}
+
+.titlebar{display:flex;align-items:center;gap:10px;padding-inline:14px;padding-block:7px;background:linear-gradient(#fafafa,#e1e2e5);border-bottom:1px solid var(--line)}
+.titlebar .ico{width:16px;height:16px;flex:none}
+.titlebar h1{font-size:14px;font-weight:600;margin:0}
+.titlebar .ver{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-inline:10px;padding-block:6px;background:var(--panel);border-bottom:1px solid var(--line)}
+.tools .sep{width:1px;align-self:stretch;background:var(--line2);margin-inline:4px}
+.tools .lbl{color:var(--muted);font-size:12.5px;margin-left:2px}
+button{font:inherit;font-size:13px;min-height:30px;padding:0 12px;border:1px solid var(--line);border-radius:3px;background:linear-gradient(#ffffff,#e9eaec);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+button:hover{background:linear-gradient(#ffffff,#dfe6f2);border-color:#7f97bf}
+button:active{background:#d6dbe3}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button svg{width:12px;height:12px}
+.seg{display:inline-flex}
+.seg button{border-radius:0}
+.seg button:first-child{border-radius:3px 0 0 3px}
+.seg button:last-child{border-radius:0 3px 3px 0;margin-left:-1px}
+.seg button[aria-pressed="true"],#btnHelp[aria-pressed="true"]{background:linear-gradient(#3d7de0,#2a63bd);border-color:#245aad;color:#fff}
+
+main{min-height:0;display:grid;grid-template-columns:318px minmax(0,1fr);gap:8px;padding:8px}
+.dock{min-height:0;display:flex;flex-direction:column;gap:8px;overflow:auto}
+.dock>*{flex-shrink:0}
+.pane{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.pane>.hd{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 8px;background:linear-gradient(#e6e7ea,var(--head));border-bottom:1px solid var(--line);font-size:12.5px;font-weight:600}
+.pane>.hd span{font-weight:400;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pane>.hd .ch{font-family:var(--mono);color:var(--accent);margin-right:6px;font-weight:500}
+.cbox{position:relative;flex:1;min-height:0;background:var(--scope)}
+.cbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
+.dock>#paneA{flex:1 1 auto;min-height:150px;max-height:280px}
+
+fieldset{margin:0;border:1px solid var(--line);background:var(--panel);padding:4px 10px 8px;display:grid;gap:2px}
+legend{font-size:12.5px;font-weight:600;padding:0 4px}
+.ctl{display:grid;grid-template-columns:1fr auto;align-items:center;gap:0 8px}
+.ctl label{font-size:13px}
+.ctl label i{font-family:var(--mono);font-style:normal;color:var(--muted);font-size:12px;margin-left:3px}
+.ctl output{font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;background:var(--field);border:1px solid var(--line);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.12);padding:1px 6px;min-width:92px;text-align:right;white-space:nowrap}
+.ctl input{grid-column:1/-1}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;margin:0;background:transparent;cursor:pointer;--p:50%;
+  --track:linear-gradient(90deg,var(--accent) var(--p),#cfd2d7 var(--p))}
+input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:3px;border:1px solid #8f939b;background:var(--track)}
+input[type=range]::-moz-range-track{height:4px;border-radius:3px;border:1px solid #8f939b;background:var(--track)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-7px;border-radius:50%;background:linear-gradient(#ffffff,#dcdfe4);border:1px solid #6f747d;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:linear-gradient(#ffffff,#dcdfe4);border:1px solid #6f747d}
+input[type=range]:hover::-webkit-slider-thumb{border-color:var(--accent)}
+#inW{--track:linear-gradient(90deg,#61008f,#4b00ff 15%,#00a2ff 30%,#00ff8c 42%,#c8ff00 55%,#ffb300 68%,#ff2a00 82%,#8c0000)}
+#swatch{display:inline-block;width:10px;height:10px;border:1px solid #555;margin-right:5px;vertical-align:-1px}
+
+.plots{min-height:0;display:flex;flex-direction:column;gap:8px}
+#paneB{flex:3}#paneC{flex:1.1}#paneD{flex:2.1}
+#paneB canvas,#paneC canvas,#paneD canvas{cursor:crosshair}
+.read{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);background:var(--panel);margin:0}
+.read div{padding:3px 8px;border-left:1px solid var(--line2);min-width:0}
+.read div:first-child{border-left:0}
+.read dt{font-size:11.5px;color:var(--muted)}
+.read dd{margin:0;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.status{display:flex;flex-wrap:wrap;gap:2px 16px;align-items:center;padding-inline:10px;padding-block:4px;background:var(--head);border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;color:#33363c}
+.status .led{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--run);margin-right:5px;box-shadow:0 0 4px var(--run)}
+.status .led.off{background:#9a9da3;box-shadow:none}
+
+.app.help main{grid-template-columns:318px minmax(0,1fr) 318px}
+#helpPane .hd button{min-height:22px;padding:0 8px;font-size:12px;font-weight:400}
+#helpPane .bd{flex:1;min-height:0;overflow:auto;padding:6px 12px 12px;font-size:13px;background:var(--field)}
+#helpPane h3{font-size:13px;margin:10px 0 3px;color:var(--accent)}
+#helpPane h3:first-child{margin-top:2px}
+#helpPane ul{margin:0;padding-left:16px}
+#helpPane li{margin:2px 0}
+
+@media (max-width:860px){
+  .app{height:auto;min-height:100%;border:0}
+  main{grid-template-columns:minmax(0,1fr);padding:6px;gap:6px}
+  .dock{display:contents}
+  #paneA{order:1}.plots{order:2}#fsGeo{order:3}#fsSrc{order:4}#helpPane{order:5}
+  .app.help main{grid-template-columns:minmax(0,1fr)}
+  .dock>#paneA{min-height:0;max-height:none}#paneA .cbox{flex:none;height:96px}
+  #paneB .cbox{flex:none;height:96px}#paneC .cbox{flex:none;height:40px}#paneD .cbox{flex:none;height:76px}
+  .plots{gap:6px}
+  .plots .pane{flex:none}
+  .titlebar .ver{display:none}
+  .read{grid-template-columns:1fr 1fr}
+  .read div:nth-child(3){border-left:0}
+  .read div:nth-child(n+3){border-top:1px solid var(--line2)}
+  fieldset{grid-template-columns:1fr 1fr;gap:0 14px}
+  fieldset legend{grid-column:1/-1}
+  .ctl output{min-width:0}
+  .tools .lbl{display:none}
+}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <div class="titlebar">
+    <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" fill="#0c0e12"/><path d="M2 8c1.5-5 3-5 4.5 0s3 5 4.5 0 2-3 3 0" stroke="#c8ff00" stroke-width="1.4" fill="none"/></svg>
+    <h1>이중슬릿 위상 점프 실험</h1>
+    <span class="ver">Double-slit phase-jump simulator</span>
+  </div>
+
+  <div class="tools">
+    <button type="button" id="btnPlay"></button>
+    <button type="button" id="btnReset"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6a3.5 3.5 0 1 0 1.2-2.6M2.5 1.5v2.4h2.4" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>처음 값으로</button>
+    <span class="sep"></span>
+    <span class="lbl">시간 흐름</span>
+    <div class="seg" role="group" aria-label="시간 흐름">
+      <button type="button" id="btnReal" aria-pressed="true">1배속</button>
+      <button type="button" id="btnSlow" aria-pressed="false">초저속</button>
+    </div>
+    <span class="sep"></span>
+    <button type="button" id="btnHelp" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" fill="none"/><path d="M6 5.2v3.6M6 3.2v.9" stroke="currentColor" stroke-width="1.4"/></svg>세부 설명 보기</button>
+  </div>
+
+  <main>
+    <div class="dock">
+      <section class="pane" id="paneA">
+        <div class="hd"><div>배치도</div><span id="capA">실제 비율이 아닌 개념도</span></div>
+        <div class="cbox"><canvas id="cvDiagram" aria-label="광원, 위상 점프 위치, 이중슬릿, 스크린의 배치도"></canvas></div>
+      </section>
+
+      <fieldset id="fsGeo">
+        <legend>기하 조건</legend>
+        <div class="ctl"><label for="inP">측정점 위치<i>x</i></label><output id="outP"></output>
+          <input type="range" id="inP" min="-100" max="100" step="0.5" value="40"></div>
+        <div class="ctl"><label for="inL">슬릿–스크린 거리<i>L</i></label><output id="outL"></output>
+          <input type="range" id="inL" min="10" max="100" step="1" value="50"></div>
+        <div class="ctl"><label for="inD">슬릿 간격<i>d</i></label><output id="outD"></output>
+          <input type="range" id="inD" min="0" max="1000" step="1" value="411"></div>
+        <div class="ctl"><label for="inX">스크린 표시 폭</label><output id="outX"></output>
+          <input type="range" id="inX" min="0" max="1000" step="1" value="475"></div>
+      </fieldset>
+
+      <fieldset id="fsSrc">
+        <legend>광원</legend>
+        <div class="ctl"><label for="inW">파장<i>λ</i></label><output id="outW"></output>
+          <input type="range" id="inW" min="380" max="750" step="1" value="565"></div>
+        <div class="ctl"><label for="inF">위상 점프 횟수<i>f</i></label><output id="outF"></output>
+          <input type="range" id="inF" min="0" max="1000" step="1" value="67"></div>
+      </fieldset>
+    </div>
+
+    <div class="plots">
+      <section class="pane" id="paneB">
+        <div class="hd"><div><span class="ch">CH1</span>스크린 위 간섭 파형 E(x, t)</div><span id="capB">진동은 느리게 그림</span></div>
+        <div class="cbox"><canvas id="cvWave" aria-label="스크린 위치에 따른 합성파의 순간값과 진폭 범위"></canvas></div>
+      </section>
+      <section class="pane" id="paneC">
+        <div class="hd"><div><span class="ch">CAM</span>스크린 영상 I(x)</div><span id="capC">눈에 보이는 시간 평균 밝기</span></div>
+        <div class="cbox"><canvas id="cvLight" aria-label="스크린에 보이는 밝고 어두운 무늬"></canvas></div>
+      </section>
+      <section class="pane" id="paneD">
+        <div class="hd"><div><span class="ch">CH2</span>위상이 어긋나 있는 시간의 비율</div><span>그래프를 끌면 측정점 이동</span></div>
+        <div class="cbox"><canvas id="cvRatio" aria-label="스크린 위치별로 두 빛의 위상이 어긋나 있는 시간과 맞아 있는 시간의 비율"></canvas></div>
+      </section>
+      <dl class="read">
+        <div><dt>무늬 간격</dt><dd id="rFringe"></dd></div>
+        <div><dt>점프 간격</dt><dd id="rT"></dd></div>
+        <div><dt>점프 사이 빛의 이동 거리</dt><dd id="rLc"></dd></div>
+        <div><dt>경로차 최댓값</dt><dd id="rDmax"></dd></div>
+      </dl>
+    </div>
+    <aside class="pane" id="helpPane" hidden aria-label="세부 설명">
+      <div class="hd"><div>세부 설명</div><button type="button" id="btnClose">닫기</button></div>
+      <div class="bd">
+      <h3>각 화면</h3>
+      <ul>
+        <li>배치도: 위상 점프는 두 슬릿 바로 앞에서 일어나고, 두 슬릿이 같은 값의 점프를 동시에 겪습니다.</li>
+        <li>CH1: 스크린 위 합성파의 순간값(선)과 진폭 범위(색 띠).</li>
+        <li>CAM: 스크린의 밝기. 1배속에서는 눈에 보이는 시간 평균 밝기, 초저속에서는 그 순간의 밝기입니다.</li>
+        <li>CH2: 각 위치에서 두 빛의 위상이 어긋나 있는 시간(주황)과 맞아 있는 시간(하늘색)의 비율.</li>
+        <li>CH1, CAM, CH2를 누르거나 끌면 측정점(흰 점선)이 옮겨집니다.</li>
+        <li>스크린 표시 폭은 보이는 범위만 바꿉니다. 측정점의 실제 위치와 현상은 그대로입니다.</li>
+      </ul>
+      <h3>점프를 해도 무늬가 그대로인 이유</h3>
+      <ul>
+        <li>두 슬릿이 같은 점프를 겪으므로, 스크린에서 두 빛의 위상차는 경로차로만 정해집니다.</li>
+        <li>무늬가 흐트러지는 때는 가까운 쪽 빛만 새 위상으로 도착해 있는 순간뿐이고, 그 길이는 경로차 ÷ 빛의 속도입니다.</li>
+        <li>경로차는 슬릿 간격 d를 넘지 못하므로 이 시간은 기본값에서 0.3 ps보다 짧습니다.</li>
+        <li>1초에 수천 번 정도의 점프로는 무늬가 변하지 않습니다. 10¹³번 근처부터 바깥 무늬가 흐려지고, 10¹⁵번 근처에서는 중앙 무늬만 남습니다.</li>
+      </ul>
+      <h3>CH2 시간 비율 읽는 법</h3>
+      <ul>
+        <li>뒤틀린 시간의 비율 = 경로차 ÷ 점프 사이에 빛이 가는 거리.</li>
+        <li>100%에 닿는 위치에 빨간 점선을 긋고, 그 바깥은 항상 뒤틀려 있으므로 선을 그리지 않습니다.</li>
+        <li>점프 횟수가 적으면 점선이 화면 밖에 있고, 두 선은 0%와 100%에 붙어 있습니다.</li>
+      </ul>
+      <h3>초저속</h3>
+      <ul>
+        <li>측정점이 한 번 뒤틀려 있는 시간이 화면에서 3초가 되도록 늦추고, 끊지 않고 계속 진행합니다. 배율은 아래 상태줄에 나옵니다.</li>
+        <li>배율은 측정점의 위치, 슬릿 간격, 거리, 파장에 따라 정해지고 표시 폭과는 상관없습니다.</li>
+        <li>배치도의 공 하나가 위상 점프 하나이고, 공과 공 사이의 색은 같은 위상을 가진 구간입니다. 켠 순간 이미 날아가던 공도 보입니다.</li>
+        <li>측정점에 두 경로의 색이 다르게 닿아 있는 동안이 뒤틀린 시간이고, 이때 측정점이 빨갛게 표시됩니다.</li>
+        <li>CH1에서 빨갛게 칠한 곳이 뒤틀린 구간입니다. 중앙에서 시작해 바깥으로 퍼지고, 뒤따라 중앙부터 풀립니다.</li>
+        <li>점프가 드물면 켠 뒤 4초쯤 공 한 쌍이 지나가고 다시 오지 않습니다. 10¹⁴번 이상에서는 줄지어 계속 지나갑니다.</li>
+      </ul>
+      <h3>실제와 다르게 그린 것</h3>
+      <ul>
+        <li>1배속의 빛의 진동은 눈에 보이도록 느리게 그렸습니다. 점프는 실제 간격대로 일어납니다.</li>
+        <li>슬릿 하나의 폭에 따른 회절은 넣지 않았습니다.</li>
+        <li>배치도는 비율대로 그리지 않았고, 초저속에서 두 경로의 공이 벌어지는 정도도 과장했습니다. 도착 시각의 차이는 정확합니다.</li>
+        <li>초저속에서 뒤틀림이 퍼져 나가는 빠르기는 풀리는 빠르기에 맞춰 줄였습니다. 실제로는 폭이 d인 가는 띠가 훨씬 빠르게 지나가서 이 화면 폭에서는 보이지 않습니다.</li>
+      </ul>
+    </div>
+    </aside>
+  </main>
+
+  <div class="status" role="status">
+    <span><i class="led" id="led"></i><span id="stRun">실행 중</span></span>
+    <span id="stMode">1배속</span>
+    <span id="stProbe"></span>
+    <span id="stLoss"></span>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const C=299792458;
+  const DEF={inL:50,inD:411,inW:565,inF:67,inX:475,inP:40};
+  // xp: 측정점의 실제 위치(m). 표시 폭을 바꿔도 이 값은 그대로 둔다
+  const S={L:.5,d:1e-4,wl:565e-9,f:10,X:.015,xp:.006,playing:true,t:0,phase:0,jumpIdx:0,flash:0,prev:0,tau:1,slow:false,s:0,seed:1,tr:0,th:0,thS:0,g:1e9,R0:.5};
+  const cv={D:$('cvDiagram'),W:$('cvWave'),I:$('cvLight'),R:$('cvRatio')};
+  const cx={D:cv.D.getContext('2d'),W:cv.W.getContext('2d'),I:cv.I.getContext('2d'),R:cv.R.getContext('2d')};
+  const MONO='"IBM Plex Mono",ui-monospace,Consolas,Menlo,monospace', SANS='"IBM Plex Sans KR","Segoe UI","Malgun Gothic",sans-serif';
+  const AX='#b9bec8', GRID='rgba(255,255,255,.09)', DIM='#8a909c', RED='#ff4d4d', OR='#ffa533', CY='#4cc9ff';
+  const ML=46, MR=12;
+
+  function wl2rgb(w){
+    let r=0,g=0,b=0;
+    if(w<440){r=(440-w)/60;b=1}else if(w<490){g=(w-440)/50;b=1}else if(w<510){g=1;b=(510-w)/20}
+    else if(w<580){r=(w-510)/70;g=1}else if(w<645){r=1;g=(645-w)/65}else{r=1}
+    let f=1; if(w<420)f=.4+.6*(w-380)/40; else if(w>700)f=.4+.6*(750-w)/50;
+    return [r*f,g*f,b*f];
+  }
+  const css=(c,a)=>'rgba('+Math.round(c[0]*255)+','+Math.round(c[1]*255)+','+Math.round(c[2]*255)+','+a+')';
+  const lift=c=>c.map(v=>.25+.75*v);
+  function sig(v,n){return Number(v.toPrecision(n)).toString()}
+  function fmtLen(m){
+    const a=Math.abs(m);
+    if(a===0)return '0';
+    if(a<1e-6)return sig(m*1e9,3)+' nm';
+    if(a<1e-3)return sig(m*1e6,3)+' µm';
+    if(a<1e-2)return sig(m*1e3,3)+' mm';
+    if(a<1)return sig(m*1e2,3)+' cm';
+    if(a<1e3)return sig(m,3)+' m';
+    return Math.round(m/1e3).toLocaleString('ko-KR')+' km';
+  }
+  function pathDiff(x){const r1=Math.hypot(S.L,x+S.d/2), r2=Math.hypot(S.L,x-S.d/2);return 2*x*S.d/(r1+r2)}
+  const SUP='⁰¹²³⁴⁵⁶⁷⁸⁹';
+  function fmtCount(f){if(f<1e4)return String(f);const e=Math.floor(Math.log10(f)+1e-9),m=Number((f/Math.pow(10,e)).toPrecision(2));
+    return (m===1?'':m+'×')+'10'+String(e).split('').map(c=>SUP[c]).join('')}
+  function fmtTime(t){const u=[[1,'s'],[1e-3,'ms'],[1e-6,'µs'],[1e-9,'ns'],[1e-12,'ps'],[1e-15,'fs']];
+    for(const [v,n] of u)if(t>=v*.999)return sig(t/v,3)+' '+n;return sig(t/1e-15,3)+' fs'}
+  function rph(n){let v=Math.sin((n+S.seed)*12.9898)*43758.5453;v-=Math.floor(v);return (v*2-1)*Math.PI}
+  const frac=()=>S.xp/S.X;
+  const winT=()=>Math.max(Math.abs(pathDiff(S.xp)),S.wl/4)/C;
+  const lag=x=>(Math.abs(pathDiff(x))-S.R0)/C;
+  const nearP=x=>S.slow?rph(Math.floor((S.tr-lag(x))*S.f)):S.phase;
+  const farP=(x,D)=>S.slow?rph(Math.floor((S.tr-lag(x)-Math.abs(D)/C)*S.f)):(Math.abs(D)/C>S.tau?S.prev:S.phase);
+  const vis=x=>Math.max(0,1-Math.abs(pathDiff(x))*S.f/C);
+
+  function syncSlow(){
+    if(!S.slow){S.th=S.t*Math.PI;return}
+    S.R0=Math.abs(pathDiff(S.xp));
+    const T=winT()/3;S.s=S.tr/T+4;S.th=S.thS;
+    S.g=1/S.f/T;
+    const nd=Math.floor((S.s-.5)/S.g);
+    S.flash=Math.max(0,1-(S.s-.5-nd*S.g)*3);
+    S.phase=rph(nd);
+    $('stMode').textContent='초저속 '+fmtCount(Number((1/T).toPrecision(2)))+'배 느리게 (화면 1초 = 실제 '+fmtTime(T)+')';
+  }
+  function setMode(slow){
+    S.slow=slow;S.seed=Math.random()*1000;S.tr=-4*winT()/3;S.thS=0;
+    $('btnReal').setAttribute('aria-pressed',String(!slow));$('btnSlow').setAttribute('aria-pressed',String(slow));
+    if(!slow)$('stMode').textContent='1배속';
+    $('capA').textContent=slow?'공은 위상 점프, 색은 같은 위상 구간':'실제 비율이 아닌 개념도';
+    $('capB').textContent=slow?'빨간 곳이 뒤틀린 구간':'진동은 느리게 그림';
+    $('capC').textContent=slow?'그 순간의 밝기':'눈에 보이는 시간 평균 밝기';
+    drawAll();
+  }
+  function setFill(el){el.style.setProperty('--p',((el.value-el.min)/(el.max-el.min)*100)+'%')}
+  function readInputs(src){
+    S.L=$('inL').value/100;
+    S.d=Number((0.02e-3*Math.pow(50,$('inD').value/1000)).toPrecision(2));
+    S.wl=$('inW').value*1e-9;
+    S.f=Math.pow(10,15*$('inF').value/1000);S.f=S.f<1000?Math.max(1,Math.round(S.f)):Number(S.f.toPrecision(2));
+    S.X=1e-3*Math.pow(300,$('inX').value/1000);
+    S.jumpIdx=Math.floor(S.t*S.f);
+    if(src==='inP'||src==='init'){S.xp=$('inP').value/100*S.X}
+    else{S.xp=Math.max(-S.X,Math.min(S.X,S.xp));$('inP').value=S.xp/S.X*100}
+    Object.keys(DEF).forEach(id=>setFill($(id)));
+    $('outL').textContent=Math.round(S.L*100)+' cm';
+    $('outD').textContent=(S.d*1e3).toFixed(S.d<1e-4?3:2)+' mm';
+    $('outW').innerHTML='<span id="swatch" style="background:'+css(wl2rgb(S.wl*1e9),1)+'"></span>'+Math.round(S.wl*1e9)+' nm';
+    $('outF').textContent=fmtCount(S.f)+' /s';
+    $('outX').textContent='±'+sig(S.X*1e3,2)+' mm';
+    $('rFringe').textContent=fmtLen(S.wl*S.L/S.d);
+    $('rT').textContent=fmtTime(1/S.f);
+    $('rLc').textContent=fmtLen(C/S.f);
+    $('rDmax').textContent=fmtLen(S.d);
+    updateProbe();
+  }
+  function updateProbe(){
+    const x=S.xp, D=pathDiff(x), loss=1-vis(x);
+    $('outP').textContent=(x*1e3).toFixed(2)+' mm';
+    $('stProbe').textContent='x = '+(x*1e3).toFixed(2)+' mm  Δ = '+fmtLen(D)+' = '+(D/S.wl).toFixed(2)+' λ';
+    $('stLoss').textContent='뒤틀린 시간 '+(loss>=1?'100':loss<1e-3?(loss*100).toExponential(1):(loss*100).toFixed(1))+' %';
+  }
+
+  function fit(c,ctx){
+    const r=c.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,3);
+    const w=Math.max(10,Math.round(r.width*dpr)), h=Math.max(10,Math.round(r.height*dpr));
+    if(c.width!==w||c.height!==h){c.width=w;c.height=h}
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {w:r.width,h:r.height,dpr};
+  }
+  function niceStep(v){const e=Math.pow(10,Math.floor(Math.log10(v)));const m=v/e;return (m<1.5?1:m<3.5?2:m<7.5?5:10)*e}
+  const area=(w,h,bottom)=>({l:ML,r:w-MR,t:8,b:h-bottom});
+  const xOf=(P,x)=>P.l+(x+S.X)/(2*S.X)*(P.r-P.l);
+  const xAt=(P,p)=>-S.X+(p-P.l)/(P.r-P.l)*2*S.X;
+  const xStep=P=>niceStep(2*S.X*1e3/((P.r-P.l)<420?4.5:10));
+  function grid(c,P,yt){
+    const Xmm=S.X*1e3, st=xStep(P);
+    c.strokeStyle=GRID;c.lineWidth=1;c.beginPath();
+    for(let v=Math.ceil(-Xmm/st-1e-9)*st;v<=Xmm+1e-9;v+=st){const p=Math.round(xOf(P,v/1e3))+.5;c.moveTo(p,P.t);c.lineTo(p,P.b)}
+    (yt||[]).forEach(([y])=>{const p=Math.round(y)+.5;c.moveTo(P.l,p);c.lineTo(P.r,p)});
+    c.stroke();
+  }
+  function axes(c,P,{xlab,yt,unit}){
+    const Xmm=S.X*1e3, st=xStep(P);
+    c.strokeStyle=AX;c.lineWidth=1;c.beginPath();c.moveTo(P.l+.5,P.t);c.lineTo(P.l+.5,P.b+.5);c.lineTo(P.r,P.b+.5);c.stroke();
+    c.font='11px '+MONO;c.fillStyle=AX;c.textAlign='center';c.textBaseline='top';
+    for(let v=Math.ceil(-Xmm/st-1e-9)*st;v<=Xmm+1e-9;v+=st){
+      const p=Math.round(xOf(P,v/1e3))+.5;
+      c.beginPath();c.moveTo(p,P.b);c.lineTo(p,P.b+4);c.stroke();
+      if(xlab)c.fillText(Math.abs(v)<st/1e3?'0':sig(v,3),p,P.b+5);
+    }
+    if(xlab){c.textAlign='right';c.fillText('x [mm]',P.r,P.b+18)}
+    if(yt){c.textAlign='right';c.textBaseline='middle';
+      yt.forEach(([y,l])=>{const p=Math.round(y)+.5;c.beginPath();c.moveTo(P.l-4,p);c.lineTo(P.l,p);c.stroke();c.fillText(l,P.l-6,p)})}
+    if(unit){c.textAlign='left';c.textBaseline='top';c.fillStyle=DIM;c.fillText(unit,P.l+6,P.t+2)}
+  }
+  function probeLine(c,P){
+    const p=Math.round(xOf(P,S.xp))+.5;
+    c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=1;c.setLineDash([4,3]);
+    c.beginPath();c.moveTo(p,P.t);c.lineTo(p,P.b);c.stroke();c.setLineDash([]);
+  }
+
+  function drawDiagram(){
+    const {w,h}=fit(cv.D,cx.D), c=cx.D, col=lift(wl2rgb(S.wl*1e9));
+    c.clearRect(0,0,w,h);
+    const top=22, bot=h-24, cy=(top+bot)/2, bx=Math.max(64,w*.22);
+    const sx=bx+(w-bx-30)*(.35+.65*(S.L*100-10)/90);
+    const gap=8+26*($('inD').value/1000)*Math.min(1,h/200), y1=cy-gap/2, y2=cy+gap/2;
+    const jx=bx-14, hw=Math.min(40,(bot-top)/2-6);
+    const sp=12, off=(((S.th+S.phase)/(2*Math.PI))%1+1)%1*sp;
+    c.lineWidth=1.4;c.strokeStyle=css(col,.7);
+    for(let x=jx-sp+off;x>4;x-=sp){c.beginPath();c.moveTo(x,cy-hw);c.lineTo(x,cy+hw);c.stroke()}
+    c.setLineDash([3,3]);c.strokeStyle=S.flash>.05?css(col,1):'rgba(255,255,255,.55)';c.lineWidth=1+2.5*S.flash;
+    c.beginPath();c.moveTo(jx,cy-hw-8);c.lineTo(jx,cy+hw+8);c.stroke();c.setLineDash([]);
+    c.strokeStyle='#d6dae2';c.lineWidth=3.5;c.beginPath();
+    c.moveTo(bx,top);c.lineTo(bx,y1-2.5);c.moveTo(bx,y1+2.5);c.lineTo(bx,y2-2.5);c.moveTo(bx,y2+2.5);c.lineTo(bx,bot);c.stroke();
+    c.lineWidth=2.5;c.beginPath();c.moveTo(sx,top);c.lineTo(sx,bot);c.stroke();
+    const fr=frac(), py=cy-fr*(cy-top-4);
+    c.strokeStyle='rgba(255,255,255,.18)';c.lineWidth=1;c.setLineDash([2,3]);c.beginPath();c.moveTo(bx,cy);c.lineTo(sx,cy);c.stroke();c.setLineDash([]);
+    let hot=false;
+    if(!S.slow){c.lineWidth=1.3;c.strokeStyle=css(col,.95);c.beginPath();c.moveTo(bx,y1);c.lineTo(sx,py);c.moveTo(bx,y2);c.lineTo(sx,py);c.stroke()}
+    else{
+      const SEG=['#4cc9ff','#ffa533','#c58bff','#5fe0a0'], g=S.g, nearUp=pathDiff(S.xp)>=0;
+      hot=Math.floor((S.s-4)/g)!==Math.floor((S.s-7)/g);
+      [[y1,nearUp?3.5:6.5],[y2,nearUp?6.5:3.5]].forEach(([y0,Tt])=>{
+        let n=Math.floor((S.s-.5)/g), qa=0, cnt=0;
+        while(qa<1&&cnt++<90){
+          const qb=Math.min(1,(S.s-.5-n*g)/Tt);
+          c.strokeStyle=SEG[((n%4)+4)%4];c.lineWidth=2.6;c.beginPath();
+          c.moveTo(bx+(sx-bx)*qa,y0+(py-y0)*qa);c.lineTo(bx+(sx-bx)*qb,y0+(py-y0)*qb);c.stroke();
+          if(qb<1){c.save();c.shadowColor='#fff';c.shadowBlur=8;c.fillStyle='#fff';c.beginPath();
+            c.arc(bx+(sx-bx)*qb,y0+(py-y0)*qb,4.2,0,7);c.fill();c.restore()}
+          qa=qb;n--;
+        }
+      });
+    }
+    c.fillStyle=hot?RED:css(col,1);c.beginPath();c.arc(sx,py,hot?5:3.2,0,7);c.fill();
+    c.font='11px '+MONO;c.fillStyle=AX;c.strokeStyle=DIM;c.lineWidth=1;c.textBaseline='middle';
+    c.beginPath();c.moveTo(bx+8,y1);c.lineTo(bx+8,y2);c.moveTo(bx+5,y1);c.lineTo(bx+11,y1);c.moveTo(bx+5,y2);c.lineTo(bx+11,y2);c.stroke();
+    c.textAlign='left';c.fillText('d '+$('outD').textContent,bx+14,fr<0?y1-10:y2+10);
+    const ly=h-11;
+    c.beginPath();c.moveTo(bx,ly);c.lineTo(sx,ly);c.moveTo(bx,ly-3);c.lineTo(bx,ly+3);c.moveTo(sx,ly-3);c.lineTo(sx,ly+3);c.stroke();
+    const lt='L '+$('outL').textContent, tw=c.measureText(lt).width+8;
+    c.fillStyle='#0c0e12';c.fillRect((bx+sx)/2-tw/2,ly-7,tw,14);c.fillStyle=AX;c.textAlign='center';c.fillText(lt,(bx+sx)/2,ly);
+    c.textAlign='right';c.fillText('x '+(S.xp*1e3).toFixed(2)+' mm',sx-8,py+(fr>=0?-10:10));
+    c.fillStyle=DIM;c.textAlign='left';c.fillText('위상 '+(S.phase>=0?'+':'−')+Math.abs(Math.round(S.phase*180/Math.PI))+'°',6,11);
+    c.textAlign='right';c.fillText('스크린',Math.min(w-6,sx+22),11);
+  }
+
+  function drawWave(){
+    const {w,h}=fit(cv.W,cx.W), c=cx.W, col=lift(wl2rgb(S.wl*1e9));
+    c.clearRect(0,0,w,h);
+    const P=area(w,h,8), mid=(P.t+P.b)/2, amp=(P.b-P.t)/2/2.3, k=Math.PI/S.wl;
+    const yv=(P.b-P.t)>120?[2,1,0,-1,-2]:[2,0,-2], yt=yv.map(v=>[mid-v*amp,(v>0?'+':v<0?'−':'')+Math.abs(v)]);
+    grid(c,P,yt);
+    c.save();c.beginPath();c.rect(P.l,P.t,P.r-P.l,P.b-P.t);c.clip();
+    const env=[];
+    for(let p=P.l;p<=P.r;p++){
+      let m=0;for(let s=0;s<4;s++){const v=Math.abs(Math.cos(k*pathDiff(xAt(P,p+s/4))));if(v>m)m=v}
+      const a0=k*pathDiff(xAt(P,p)), a1=k*pathDiff(xAt(P,p+1));
+      if(Math.floor(a0/Math.PI)!==Math.floor(a1/Math.PI))m=1;
+      env.push(2*m);
+    }
+    c.beginPath();c.moveTo(P.l,mid-env[0]*amp);
+    for(let i=1;i<env.length;i++)c.lineTo(P.l+i,mid-env[i]*amp);
+    for(let i=env.length-1;i>=0;i--)c.lineTo(P.l+i,mid+env[i]*amp);
+    c.closePath();c.fillStyle=css(col,.2);c.fill();
+    if(S.slow){c.fillStyle='rgba(255,60,60,.28)';
+      for(let p=P.l;p<P.r;p++){const x=xAt(P,p+.5),a=S.tr-lag(x);
+        if(Math.floor(a*S.f)!==Math.floor((a-Math.abs(pathDiff(x))/C)*S.f))c.fillRect(p,P.t,1.05,P.b-P.t)}}
+    const th=S.th;c.beginPath();
+    for(let p=P.l;p<=P.r;p+=.5){
+      const x0=xAt(P,p), D=pathDiff(x0), hf=k*D, nP=nearP(x0), fP=farP(x0,D),
+        y=mid-(Math.cos(th+(D>0?nP:fP)+hf)+Math.cos(th+(D>0?fP:nP)-hf))*amp;
+      p===P.l?c.moveTo(p,y):c.lineTo(p,y);
+    }
+    c.strokeStyle=css(col,1);c.lineWidth=1.5;c.lineJoin='round';c.stroke();
+    probeLine(c,P);c.restore();
+    axes(c,P,{yt,unit:'E / E₀'});
+  }
+
+  function drawLight(){
+    const {w,h,dpr}=fit(cv.I,cx.I), c=cx.I, col=wl2rgb(S.wl*1e9);
+    c.clearRect(0,0,w,h);
+    const P=area(w,h,8), n=Math.round((P.r-P.l)*dpr), k2=2*Math.PI/S.wl;
+    c.fillStyle='#000';c.fillRect(P.l,P.t,P.r-P.l,P.b-P.t);
+    for(let i=0;i<n;i++){
+      const xa=-S.X+i/n*2*S.X, xb=-S.X+(i+1)/n*2*S.X;
+      const da=k2*pathDiff(xa), db=k2*pathDiff(xb);
+      let o=0;if(S.slow){const xm=(xa+xb)/2,D=pathDiff(xm),q=nearP(xm)-farP(xm,D);o=D>0?q:-q}
+      const mc=Math.abs(db-da)>1e-6?(Math.sin(db+o)-Math.sin(da+o))/(db-da):Math.cos(da+o);
+      const I=(1+(S.slow?1:vis((xa+xb)/2))*mc)/2;
+      c.fillStyle=css(col,Math.pow(Math.max(0,I),.6));
+      c.fillRect(P.l+i/dpr,P.t,1/dpr+.5,P.b-P.t);
+    }
+    c.save();c.beginPath();c.rect(P.l,P.t,P.r-P.l,P.b-P.t);c.clip();probeLine(c,P);c.restore();
+    axes(c,P,{});
+  }
+
+  function drawRatio(){
+    const {w,h}=fit(cv.R,cx.R), c=cx.R; c.clearRect(0,0,w,h);
+    const P=area(w,h,32), Y=v=>P.b-5-(P.b-P.t-10)*v, yt=[[Y(0),'0'],[Y(.5),'50'],[Y(1),'100']];
+    grid(c,P,yt);
+    c.save();c.beginPath();c.rect(P.l,P.t,P.r-P.l,P.b-P.t);c.clip();
+    const u=C/S.f/S.d, xs=u<1?S.L*u/Math.sqrt(1-u*u):Infinity;
+    if(isFinite(xs)){
+      const pL=xOf(P,-xs), pR=xOf(P,xs);
+      c.fillStyle='rgba(255,60,60,.1)';if(pL>P.l)c.fillRect(P.l,P.t,pL-P.l,P.b-P.t);if(pR<P.r)c.fillRect(pR,P.t,P.r-pR,P.b-P.t);
+      c.strokeStyle=RED;c.lineWidth=1.3;c.setLineDash([5,4]);
+      c.beginPath();c.moveTo(pL,P.t);c.lineTo(pL,P.b);c.moveTo(pR,P.t);c.lineTo(pR,P.b);c.stroke();c.setLineDash([]);
+    }
+    [[OR,v=>v],[CY,v=>1-v]].forEach(([col,fn])=>{
+      c.beginPath();let on=false;
+      for(let p=P.l;p<=P.r;p++){const x=xAt(P,p);if(Math.abs(x)>xs){on=false;continue}
+        const y=Y(fn(Math.min(1,Math.abs(pathDiff(x))*S.f/C)));on?c.lineTo(p,y):c.moveTo(p,y);on=true}
+      c.strokeStyle=col;c.lineWidth=1.8;c.lineJoin='round';c.stroke();});
+    probeLine(c,P);
+    if(P.b-P.t>40){
+      c.font='11px '+SANS;c.textBaseline='middle';c.textAlign='left';
+      const lx=P.r-118;
+      c.fillStyle='rgba(12,14,18,.85)';c.fillRect(lx-6,P.t+4,118,32);
+      [[OR,'뒤틀린 시간',P.t+12],[CY,'바로잡힌 시간',P.t+27]].forEach(([col,t,y])=>{
+        c.strokeStyle=col;c.lineWidth=2;c.beginPath();c.moveTo(lx,y);c.lineTo(lx+18,y);c.stroke();c.fillStyle='#d8dce4';c.fillText(t,lx+24,y)});
+    }
+    c.restore();
+    axes(c,P,{xlab:true,yt,unit:'%'});
+  }
+  function drawAll(){syncSlow();drawRatio();drawDiagram();drawWave();drawLight()}
+
+  let last=0;
+  function frame(now){
+    const dt=Math.min(.1,(now-last)/1000||0);last=now;
+    if(S.playing&&S.slow){
+      const T=winT()/3;S.tr+=dt*T;S.thS+=dt*2*Math.PI*Math.min(T*C/S.wl,3);drawAll();
+    }else if(S.playing){
+      S.t+=dt;
+      const idx=Math.floor(S.t*S.f), fast=S.f*dt>1;
+      if(idx!==S.jumpIdx){S.jumpIdx=idx;S.prev=fast?(Math.random()*2-1)*Math.PI:S.phase;S.phase=(Math.random()*2-1)*Math.PI;S.flash=1}
+      S.tau=fast?Math.random()/S.f:(S.t*S.f-idx)/S.f;
+      S.flash*=Math.exp(-dt*10);S.th=S.t*Math.PI;
+      drawDiagram();drawWave();
+    }
+    requestAnimationFrame(frame);
+  }
+  const ICON_PAUSE='<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1.5" width="3" height="9" fill="currentColor"/><rect x="7" y="1.5" width="3" height="9" fill="currentColor"/></svg>';
+  const ICON_PLAY='<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg>';
+  function setPlaying(on){S.playing=on;$('btnPlay').innerHTML=(on?ICON_PAUSE:ICON_PLAY)+'<span>'+(on?'일시정지':'실행')+'</span>';
+    $('led').className='led'+(on?'':' off');$('stRun').textContent=on?'실행 중':'정지'}
+
+  Object.keys(DEF).forEach(id=>$(id).addEventListener('input',()=>{readInputs(id);drawAll()}));
+  $('btnPlay').addEventListener('click',()=>setPlaying(!S.playing));
+  $('btnReal').addEventListener('click',()=>setMode(false));
+  $('btnSlow').addEventListener('click',()=>setMode(true));
+  $('btnReset').addEventListener('click',()=>{Object.keys(DEF).forEach(id=>$(id).value=DEF[id]);readInputs('init');drawAll()});
+  // 세부 설명은 오른쪽에 칸을 하나 더 열어 그래프와 나란히 보이게 한다
+  function setHelp(on){$('helpPane').hidden=!on;document.querySelector('.app').classList.toggle('help',on);
+    $('btnHelp').setAttribute('aria-pressed',String(on));drawAll()}
+  $('btnHelp').addEventListener('click',()=>setHelp($('helpPane').hidden));
+  $('btnClose').addEventListener('click',()=>{setHelp(false);$('btnHelp').focus()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('helpPane').hidden)setHelp(false)});
+
+  function setProbe(e){
+    const r=e.currentTarget.getBoundingClientRect();
+    const fr=Math.max(-1,Math.min(1,(e.clientX-r.left-ML)/(r.width-ML-MR)*2-1));
+    S.xp=fr*S.X;$('inP').value=fr*100;setFill($('inP'));
+    updateProbe();drawAll();
+  }
+  [cv.W,cv.I,cv.R].forEach(el=>{
+    let down=false;
+    el.addEventListener('pointerdown',e=>{down=true;try{el.setPointerCapture(e.pointerId)}catch(_){}setProbe(e)});
+    el.addEventListener('pointermove',e=>{if(down)setProbe(e)});
+    ['pointerup','pointercancel'].forEach(t=>el.addEventListener(t,()=>{down=false}));
+  });
+
+  setPlaying(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches));
+  new ResizeObserver(drawAll).observe(document.querySelector('.app'));
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawAll);
+  readInputs('init');setMode(false);requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
